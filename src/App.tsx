@@ -1,12 +1,14 @@
 import {useEffect,useState} from 'react'
 import {NavLink,Route,Routes} from 'react-router-dom'
 import {Bar,BarChart,ResponsiveContainer,Tooltip,XAxis,YAxis} from 'recharts'
-import {LayoutDashboard,CalendarDays,Settings as Cog,Check} from 'lucide-react'
+import {LayoutDashboard,CalendarDays,Settings as Cog,Check,BookOpenText} from 'lucide-react'
 import {TASKS,State,Day,Status,useStore,key,parse,addDays,dayMinutes,doneCount,status,emptyDay,initial} from './store'
+import {IELTS_VOCAB} from './vocabularyData'
 
 type P={s:State;set:React.Dispatch<React.SetStateAction<State>>}
 const card='rounded-lg border border-line bg-panel p-4'
 const color:Record<Status,string>={done:'bg-ok',partial:'bg-warn',missed:'bg-bad/70',upcoming:'bg-line'}
+const PAGE_SIZE=10
 
 function patch(set:P['set'],k:string,fn:(d:Day)=>Day){set(s=>({...s,days:{...s.days,[k]:fn(s.days[k]??emptyDay())}}))}
 function toggle(set:P['set'],k:string,id:string,plan:number){
@@ -27,6 +29,24 @@ function Checklist({s,set,k}:P&{k:string}){
  <ul className="mt-3 space-y-2">{TASKS.map(t=><li key={t.id}><button onClick={()=>toggle(set,k,t.id,t.min)} className="flex w-full items-center gap-3 rounded-md border border-line px-3 py-2 text-left hover:bg-line/40">
  <span className={`grid size-5 place-items-center rounded border ${d.done[t.id]?'border-ok bg-ok text-bg':'border-mute'}`}>{d.done[t.id]&&<Check size={14}/>}</span>
  <span className={d.done[t.id]?'line-through text-mute':''}>{t.label}</span><span className="ml-auto text-sm text-mute">{t.slot}, {t.min} min</span></button></li>)}</ul></div>}
+
+function VocabularySection(){
+ const [page,setPage]=useState(1)
+ const [trackedWords,setTrackedWords]=useState<string[]>(()=>{try{return JSON.parse(localStorage.getItem('ielts-vocab-tracked') ?? '[]')}catch{return []}})
+ useEffect(()=>{localStorage.setItem('ielts-vocab-tracked',JSON.stringify(trackedWords))},[trackedWords])
+ const totalPages=Math.ceil(IELTS_VOCAB.length/PAGE_SIZE)
+ const start=(page-1)*PAGE_SIZE
+ const current=IELTS_VOCAB.slice(start,start+PAGE_SIZE)
+ const toggleTracked=(word:string)=>setTrackedWords(prev=>prev.includes(word)?prev.filter(w=>w!==word):[...prev,word])
+ return<div className={card}><div className="mb-3 flex items-center justify-between gap-3"><h2 className="text-lg font-semibold">Important IELTS Vocabulary</h2><span className="rounded-full border border-line bg-line/40 px-2 py-1 text-[10px] font-medium uppercase tracking-wide text-mute">Page {page}/{totalPages}</span></div>
+ <p className="mb-3 text-sm text-mute">Tracked words: <span className="font-medium text-fg">{trackedWords.length}</span></p>
+ <div className="space-y-3">{current.map(({word,bangla,sentence,answer})=>{const tracked=trackedWords.includes(word);return<div key={word} className="rounded-md border border-line bg-bg/60 p-3"><div className="flex items-center justify-between gap-2"><span className="text-base font-semibold text-fg">{word}</span><button onClick={()=>toggleTracked(word)} className={`rounded-md border px-2 py-1 text-xs font-medium ${tracked?'border-ok bg-ok/15 text-ok':'border-line text-mute hover:text-fg'}`}>{tracked?'Tracked':'Track word'}</button></div>
+ <div className="mt-2 text-xs text-mute">Bangla: {bangla}</div><p className="mt-2 text-sm"><span className="font-medium text-fg">Sentence:</span> {sentence}</p><p className="mt-1 text-sm text-mute"><span className="font-medium text-fg">Answer:</span> {answer}</p></div>})}</div>
+ <div className="mt-4 flex items-center justify-between gap-3">
+  <button disabled={page===1} onClick={()=>setPage(p=>Math.max(1,p-1))} className="rounded-md border border-line px-3 py-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-40">Previous</button>
+  <span className="text-sm text-mute">Showing {start+1}-{Math.min(start+PAGE_SIZE,IELTS_VOCAB.length)} of {IELTS_VOCAB.length}</span>
+  <button disabled={page===totalPages} onClick={()=>setPage(p=>Math.min(totalPages,p+1))} className="rounded-md border border-line px-3 py-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-40">Next</button>
+ </div></div>}
 
 function Dashboard({s,set}:P){
  const today=new Date(),tk=key(today),start=parse(s.profile.start)
@@ -74,8 +94,9 @@ function Settings({s,set}:P){
 
 export default function App(){
  const [s,set]=useStore()
- const nav=[['/',LayoutDashboard,'Dashboard'],['/calendar',CalendarDays,'Calendar'],['/settings',Cog,'Settings']] as const
+ const nav=[['/',LayoutDashboard,'Dashboard'],['/calendar',CalendarDays,'Calendar'],['/vocabulary',BookOpenText,'Vocabulary'],['/settings',Cog,'Settings']] as const
  return<div className="min-h-screen md:flex"><nav className="flex gap-1 border-b border-line p-2 md:min-h-screen md:w-52 md:flex-col md:border-b-0 md:border-r md:p-3">
  <p className="hidden px-2 py-3 font-semibold md:block">IELTS 100</p>
- {nav.map(([to,Icon,l])=><NavLink key={to} to={to} end className={({isActive})=>`flex items-center gap-2 rounded-md px-3 py-2 text-sm ${isActive?'bg-line text-fg':'text-mute hover:text-fg'}`}><Icon size={16}/>{l}</NavLink>)}</nav>
- <main className="flex-1 p-4 md:p-8"><Routes><Route path="/" element={<Dashboard s={s} set={set}/>}/><Route path="/calendar" element={<Calendar s={s} set={set}/>}/><Route path="/settings" element={<Settings s={s} set={set}/>}/></Routes></main></div>}
+ {nav.map(([to,Icon,l])=><NavLink key={to} to={to} end={to === '/'} className={({isActive})=>`flex items-center gap-2 rounded-md px-3 py-2 text-sm ${isActive?'bg-line text-fg':'text-mute hover:text-fg'}`}><Icon size={16}/>{l}</NavLink>)}
+ </nav>
+ <main className="flex-1 p-4 md:p-8"><Routes><Route path="/" element={<Dashboard s={s} set={set}/>}/><Route path="/calendar" element={<Calendar s={s} set={set}/>}/><Route path="/vocabulary" element={<VocabularySection/>}/><Route path="/settings" element={<Settings s={s} set={set}/>}/></Routes></main></div>}
