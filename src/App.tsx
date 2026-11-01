@@ -1,9 +1,11 @@
 import {useEffect,useState} from 'react'
 import {NavLink,Route,Routes} from 'react-router-dom'
 import {Bar,BarChart,ResponsiveContainer,Tooltip,XAxis,YAxis} from 'recharts'
-import {LayoutDashboard,CalendarDays,Settings as Cog,Check,BookOpenText} from 'lucide-react'
+import {LayoutDashboard,CalendarDays,Settings as Cog,Check,BookOpenText,Languages} from 'lucide-react'
 import {TASKS,State,Day,Status,useStore,key,parse,addDays,dayMinutes,doneCount,status,emptyDay,initial} from './store'
 import {IELTS_VOCAB} from './vocabularyData'
+import {GRAMMAR_MODULES} from './grammarData'
+import {GRAMMAR_LESSONS} from './grammarLessonData'
 
 type P={s:State;set:React.Dispatch<React.SetStateAction<State>>}
 const card='rounded-lg border border-line bg-panel p-4'
@@ -47,6 +49,48 @@ function VocabularySection(){
   <span className="text-sm text-mute">Showing {start+1}-{Math.min(start+PAGE_SIZE,IELTS_VOCAB.length)} of {IELTS_VOCAB.length}</span>
   <button disabled={page===totalPages} onClick={()=>setPage(p=>Math.min(totalPages,p+1))} className="rounded-md border border-line px-3 py-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-40">Next</button>
  </div></div>}
+
+const GRAMMAR_GUIDE=[
+ {title:'১. Subject–Verb Agreement',rule:'Subject একবচন না বহুবচন—তার সঙ্গে verb মিলতে হবে। Present simple-এ he/she/it বা একবচন subject-এর verb-এর শেষে সাধারণত -s/-es যোগ হয়।',good:'The government invests in public transport.',bad:'The government invest in public transport.'},
+ {title:'২. সঠিক Tense ব্যবহার',rule:'সাধারণ সত্য বা নিয়মিত ঘটনা বোঝাতে Present Simple ব্যবহার করুন। অতীতের নির্দিষ্ট ঘটনা হলে Past Simple লিখুন। বর্তমানে নিয়মিত ঘটে এমন ঘটনা বর্ণনায় একই অনুচ্ছেদে অকারণে Past Simple ব্যবহার করবেন না।',good:'Many students use online resources every day.',bad:'Many students used online resources every day.'},
+ {title:'৩. Articles: a, an, the',rule:'একটি গণনাযোগ্য একবচন noun-এর আগে সাধারণত a/an লাগে। নির্দিষ্ট বা আগে উল্লেখ করা noun-এর আগে the ব্যবহার হয়।',good:'A university can provide students with useful resources.',bad:'University can provide student with useful resources.'},
+ {title:'৪. Countable noun ও Plural',rule:'একাধিক গণনাযোগ্য জিনিস বোঝালে noun plural করুন। information, advice, research-এর মতো uncountable noun সাধারণত plural হয় না।',good:'Many people need more job opportunities.',bad:'Many people need more job opportunity.'},
+ {title:'৫. Complete sentence লিখুন',rule:'সম্পূর্ণ বাক্যে subject এবং finite verb থাকতে হবে। শুধু dependent clause লিখলে sentence fragment হয়।',good:'Although public transport is convenient, it can be overcrowded.',bad:'Although public transport is convenient.'},
+ {title:'৬. Complex sentence গঠন',rule:'কারণ, ফল, বৈপরীত্য বা শর্ত বোঝাতে because, although, while, if-এর মতো conjunction দিয়ে দুটি সম্পর্কিত idea যুক্ত করুন।',good:'Although the policy is expensive, it could reduce pollution.',bad:'Although the policy is expensive. It could reduce pollution.'},
+ {title:'৭. Linking words সঠিকভাবে ব্যবহার',rule:'ধারণার সম্পর্ক অনুযায়ী linking word বাছুন: কারণের জন্য because, ফলের জন্য therefore, বৈপরীত্যের জন্য however। however দিয়ে দুটি সম্পূর্ণ বাক্য যুক্ত করলে full stop বা semicolon ব্যবহার করুন।',good:'The measure is costly; however, it may benefit future generations.',bad:'The measure is costly, however, it may benefit future generations.'},
+ {title:'৮. Comma splice এড়িয়ে চলুন',rule:'শুধু comma দিয়ে দুটি সম্পূর্ণ বাক্য জোড়া যায় না। Full stop, semicolon, অথবা উপযুক্ত conjunction ব্যবহার করুন।',good:'The city is growing rapidly, and housing is becoming more expensive.',bad:'The city is growing rapidly, housing is becoming more expensive.'},
+ {title:'৯. Passive voice',rule:'কাজটি কে করেছে তার চেয়ে কাজ বা ফল গুরুত্বপূর্ণ হলে be verb + past participle দিয়ে passive voice তৈরি করুন। IELTS Writing Task 1-এর process বর্ণনায় এটি বিশেষভাবে কাজে লাগে।',good:'The data are collected every month.',bad:'The data collected every month.'},
+ {title:'১০. Conditional sentence',rule:'বাস্তব সম্ভাবনা বোঝাতে If + Present Simple, will + base verb ব্যবহার করুন। If-clause-এ সাধারণত will বসে না।',good:'If governments improve public transport, fewer people will drive.',bad:'If governments will improve public transport, fewer people will drive.'},
+ {title:'১১. Parallel structure',rule:'একই তালিকায় grammatical form একই রাখুন—যেমন সবগুলো noun, অথবা সবগুলো verb-এর -ing form।',good:'The scheme aims to reduce costs, improve access, and protect the environment.',bad:'The scheme aims to reduce costs, improving access, and environmental protection.'},
+ {title:'১২. Formal academic style',rule:'Formal writing-এ contractions (যেমন don’t) ও কথ্য শব্দ এড়িয়ে চলুন। অতিরঞ্জিত দাবি না করে precise ভাষা ব্যবহার করুন।',good:'This approach may improve access to education.',bad:'This approach is gonna totally fix education.'},
+] as const
+
+function GrammarSection({s,set}:P){
+ const [unit,setUnit]=useState(1)
+ const module=GRAMMAR_MODULES[unit-1]
+ const firstTopic=GRAMMAR_MODULES.slice(0,unit-1).reduce((total,section)=>total+section.topics.length,1)
+ const completed=GRAMMAR_MODULES.reduce((total,section,index)=>total+section.topics.filter((_,topicIndex)=>s.grammarDone?.[`lesson-${GRAMMAR_MODULES.slice(0,index).reduce((count,previous)=>count+previous.topics.length,1)+topicIndex}`]).length,0)
+ const unitCompleted=module.topics.filter((_,index)=>s.grammarDone?.[`lesson-${firstTopic+index}`]).length
+ return<div className="space-y-4">
+ <div><h1 className="text-2xl font-semibold">IELTS Grammar: 300 Topics</h1><p className="mt-1 text-sm text-mute">৩৩টি ইউনিটে সাজানো ৩০০টি grammar lesson topic — প্রতিটি বিষয়ে বাংলা ব্যাখ্যা ও English উদাহরণসহ।</p></div>
+ <section className={card}>
+  <div className="flex items-center justify-between gap-3"><h2 className="font-medium">Grammar progress</h2><span className="text-sm text-mute">{completed}/300 lessons · {Math.round(completed/300*100)}%</span></div>
+  <div className="mt-3 h-2 rounded bg-line" role="progressbar" aria-label="Grammar lesson progress" aria-valuemin={0} aria-valuemax={300} aria-valuenow={completed}><div className="h-full rounded bg-prog transition-all" style={{width:`${completed/300*100}%`}}/></div>
+ </section>
+ <section className={card}>
+  <div className="mb-3"><p className="text-xs font-medium uppercase tracking-wide text-mute">Unit {unit} of {GRAMMAR_MODULES.length} · {unitCompleted}/{module.topics.length} completed</p><h2 className="mt-1 text-lg font-semibold">{module.title}</h2><p className="mt-1 text-sm text-mute">{module.description}</p></div>
+  <ol className="divide-y divide-line">{module.topics.map((title,index)=>{const lessonNumber=firstTopic+index,lessonId=`lesson-${lessonNumber}`,isDone=Boolean(s.grammarDone?.[lessonId]),[explanation,example]=GRAMMAR_LESSONS[unit-1][index];return<li key={title} className="py-4"><div className="flex items-start gap-3"><span className="mt-0.5 min-w-16 text-xs text-mute">Lesson {lessonNumber}</span><div className="min-w-0 flex-1"><h3 className={`text-sm font-medium ${isDone?'text-mute line-through':''}`}>{title}</h3><p className="mt-2 text-sm leading-6 text-mute">{explanation}</p><p className="mt-2 text-sm"><span className="font-medium text-ok">Example: </span>{example}</p></div><button type="button" aria-pressed={isDone} aria-label={`${isDone?'Mark':'Complete'} lesson ${lessonNumber}: ${title}`} onClick={()=>set(current=>({...current,grammarDone:{...current.grammarDone,[lessonId]:!current.grammarDone?.[lessonId]}}))} className={`flex shrink-0 items-center gap-1 rounded-md border px-2 py-1.5 text-xs font-medium ${isDone?'border-ok bg-ok/15 text-ok':'border-line text-mute hover:text-fg'}`}>{isDone&&<Check size={14}/>}<span>{isDone?'Done':'Mark done'}</span></button></div></li>})}</ol>
+  <div className="mt-4 flex items-center justify-between gap-3">
+   <button disabled={unit===1} onClick={()=>setUnit(n=>Math.max(1,n-1))} className="rounded-md border border-line px-3 py-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-40">Previous unit</button>
+   <span className="text-sm text-mute">Topics {firstTopic}–{firstTopic+module.topics.length-1} of 300</span>
+   <button disabled={unit===GRAMMAR_MODULES.length} onClick={()=>setUnit(n=>Math.min(GRAMMAR_MODULES.length,n+1))} className="rounded-md border border-line px-3 py-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-40">Next unit</button>
+  </div>
+ </section>
+ <section className="space-y-3"><h2 className="text-lg font-semibold">Quick writing grammar reference</h2><div className="grid gap-3 lg:grid-cols-2">{GRAMMAR_GUIDE.map(({title,rule,good,bad})=><article key={title} className={card}>
+  <h2 className="font-semibold">{title}</h2><p className="mt-2 text-sm leading-6 text-mute">{rule}</p>
+  <p className="mt-3 text-sm"><span className="font-medium text-ok">ভালো উদাহরণ: </span>{good}</p><p className="mt-1 text-sm"><span className="font-medium text-bad">এড়িয়ে চলুন: </span>{bad}</p>
+ </article>)}</div></section>
+ </div>}
 
 function Dashboard({s,set}:P){
  const today=new Date(),tk=key(today),start=parse(s.profile.start)
@@ -94,9 +138,9 @@ function Settings({s,set}:P){
 
 export default function App(){
  const [s,set]=useStore()
- const nav=[['/',LayoutDashboard,'Dashboard'],['/calendar',CalendarDays,'Calendar'],['/vocabulary',BookOpenText,'Vocabulary'],['/settings',Cog,'Settings']] as const
+ const nav=[['/',LayoutDashboard,'Dashboard'],['/calendar',CalendarDays,'Calendar'],['/vocabulary',BookOpenText,'Vocabulary'],['/grammar',Languages,'Grammar'],['/settings',Cog,'Settings']] as const
  return<div className="min-h-screen md:flex"><nav className="flex gap-1 border-b border-line p-2 md:min-h-screen md:w-52 md:flex-col md:border-b-0 md:border-r md:p-3">
  <p className="hidden px-2 py-3 font-semibold md:block">IELTS 100</p>
  {nav.map(([to,Icon,l])=><NavLink key={to} to={to} end={to === '/'} className={({isActive})=>`flex items-center gap-2 rounded-md px-3 py-2 text-sm ${isActive?'bg-line text-fg':'text-mute hover:text-fg'}`}><Icon size={16}/>{l}</NavLink>)}
  </nav>
- <main className="flex-1 p-4 md:p-8"><Routes><Route path="/" element={<Dashboard s={s} set={set}/>}/><Route path="/calendar" element={<Calendar s={s} set={set}/>}/><Route path="/vocabulary" element={<VocabularySection/>}/><Route path="/settings" element={<Settings s={s} set={set}/>}/></Routes></main></div>}
+ <main className="flex-1 p-4 md:p-8"><Routes><Route path="/" element={<Dashboard s={s} set={set}/>}/><Route path="/calendar" element={<Calendar s={s} set={set}/>}/><Route path="/vocabulary" element={<VocabularySection/>}/><Route path="/grammar" element={<GrammarSection s={s} set={set}/>}/><Route path="/settings" element={<Settings s={s} set={set}/>}/></Routes></main></div>}
